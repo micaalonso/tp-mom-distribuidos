@@ -13,21 +13,25 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
         self.channel = self.connection.channel()
         response = self.channel.queue_declare(queue=self.queue_name, durable=True)
         if response:
-            logging.debug(f"Queue declared successfully")
+            logging.info(f"Queue declared successfully")
+            print("Queue declared successfully")
     
     def start_consuming(self, on_message_callback):
         self.channel.basic_consume(queue=self.queue_name, on_message_callback=self.callback)
         self.channel.start_consuming()
     
     
-    def callback(ch, method, properties, body):
-        logging.debug(f"Processing message: {body}")
+    def callback(self, ch, method, properties, body):
+        logging.info(f"Processing message: {body}")
+        print(f"Processing message: {body}")
     
     def stop_consuming(self):
         self.channel.stop_consuming()
 
     def send(self, message):
-        pass
+        # Caso feliz (no considero errores por ahora)
+        print(f"Sending message: {message}")
+        self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=message)
 
     def close(self):
         self.connection.close()
