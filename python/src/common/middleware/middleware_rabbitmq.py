@@ -17,13 +17,16 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             print("Queue declared successfully")
     
     def start_consuming(self, on_message_callback):
-        self.channel.basic_consume(queue=self.queue_name, on_message_callback=self.callback)
+        def callback(ch, method, properties, body):
+            logging.info(f"Processing message: {body}")
+            print(f"Processing message: {body}")
+            def ack():
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+            def nack():
+                ch.basic_nack(delivery_tag=method.delivery_tag)
+            on_message_callback(body, ack, nack)
+        self.channel.basic_consume(queue=self.queue_name, on_message_callback=callback)
         self.channel.start_consuming()
-    
-    
-    def callback(self, ch, method, properties, body):
-        logging.info(f"Processing message: {body}")
-        print(f"Processing message: {body}")
     
     def stop_consuming(self):
         self.channel.stop_consuming()
