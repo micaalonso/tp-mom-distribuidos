@@ -72,14 +72,8 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
     def __init__(self, host, exchange_name, routing_keys):
         self.exchange_name = exchange_name
         self.routing_keys = routing_keys
-        # self.connection = pika.BlockingConnection(
-        # pika.ConnectionParameters(host='rabbitmq'))
-        # self.channel = self.connection.channel()
-        # self.channel.exchange_declare(exchange=self.exchange_name, exchange_type='direct')
 
-        # # El flag exclusive es para que una vez que la conexión cierre, la queue se elimine
-        # queue_response = self.channel.queue_declare(queue='', durable=True, exclusive=True)
-        # self.queue_name = queue_response.method.queue
+        # Queue
         self.queue = MessageMiddlewareQueueRabbitMQ(host, '')
         self.queue_name = self.queue.queue_name
         self.connection = self.queue.connection
@@ -98,11 +92,20 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
 
     def send(self, message):
         for rounting_key in self.routing_keys:
-            self.channel.basic_publish(
-                exchange=self.exchange_name,
-                routing_key=rounting_key,
-                body=message
-            )
+            try:
+                self.channel.basic_publish(
+                    exchange=self.exchange_name,
+                    routing_key=rounting_key,
+                    body=message
+                )
+            except (
+            pika.exceptions.AMQPConnectionError,
+            pika.exceptions.ChannelError,
+            pika.exceptions.ConnectionClosed
+            ) as e:
+                raise MessageMiddlewareDisconnectedError(f"Connection lost | routing_key: {rounting_key} | error: {e}")
+            except Exception as e:
+                raise MessageMiddlewareMessageError(f"Internal error | routing_key: {rounting_key} | error: {e}")
 
     def close(self):
         self.queue.close()
