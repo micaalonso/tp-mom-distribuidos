@@ -42,7 +42,10 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             raise MessageMiddlewareMessageError(f"Internal error | error: {e}")
     
     def stop_consuming(self):
-        self.channel.stop_consuming()
+        try:
+            self.channel.stop_consuming()
+        except Exception as e:
+            raise MessageMiddlewareDisconnectedError(f"Connection lost | error: {e}")
 
     def send(self, message):
         # Caso feliz (no considero errores por ahora)
