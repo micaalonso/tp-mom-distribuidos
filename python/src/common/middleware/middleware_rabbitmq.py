@@ -74,15 +74,14 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
         self.connection = pika.BlockingConnection(
         pika.ConnectionParameters(host='rabbitmq'))
         self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange='direct_logs', exchange_type='direct')
-        self.channel.queue_declare(queue=self.exchange_name, durable=True)
+        self.channel.exchange_declare(exchange=self.exchange_name, exchange_type='direct')
 
         # El flag exclusive es para que una vez que la conexión cierre, la queue se elimine
         queue_response = self.channel.queue_declare(queue='', durable=True, exclusive=True)
-        queue_name = queue_response.method.queue
+        self.queue_name = queue_response.method.queue
 
         for routing_key in self.routing_keys:
-            self.channel.queue_bind(exchange='direct_logs', queue=queue_name, routing_key=routing_key)
+            self.channel.queue_bind(exchange=self.exchange_name, queue=self.queue_name, routing_key=routing_key)
 
     def start_consuming(self, on_message_callback):
         pass
