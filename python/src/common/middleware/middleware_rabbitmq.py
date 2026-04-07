@@ -2,7 +2,7 @@ import pika
 import random
 import string
 import logging
-from .middleware import MessageMiddlewareQueue, MessageMiddlewareExchange, MessageMiddlewareMessageError, MessageMiddlewareDisconnectedError 
+from .middleware import MessageMiddlewareQueue, MessageMiddlewareExchange, MessageMiddlewareMessageError, MessageMiddlewareDisconnectedError, MessageMiddlewareCloseError
 
 class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
 
@@ -61,7 +61,10 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             raise MessageMiddlewareMessageError(f"Internal error | error: {e}")
 
     def close(self):
-        self.connection.close()
+        try:
+            self.connection.close()
+        except Exception as e:
+            raise MessageMiddlewareCloseError(f"Internal error | error: {e}")
 
 class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
     
