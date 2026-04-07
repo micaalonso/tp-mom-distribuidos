@@ -1,74 +1,112 @@
 import pika
-import random
-import string
-from .middleware import MessageMiddlewareQueue, MessageMiddlewareExchange, MessageMiddlewareMessageError, MessageMiddlewareDisconnectedError, MessageMiddlewareCloseError
+
+from .middleware import (
+    MessageMiddlewareQueue,
+    MessageMiddlewareExchange,
+    MessageMiddlewareMessageError,
+    MessageMiddlewareDisconnectedError,
+    MessageMiddlewareCloseError,
+    )
+
 
 class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
 
     def __init__(self, host, queue_name):
         self.connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host=host))
+            pika.ConnectionParameters(host=host)
+        )
         self.channel = self.connection.channel()
         if not queue_name:
-            # Sería para cuando armo el exchange, que le paso un string vacio como queue_name
-            response = self.channel.queue_declare(queue=queue_name, exclusive=True)
+            # Sería para cuando armo el exchange,
+            # que le paso un string vacio como queue_name
+            response = self.channel.queue_declare(
+                queue=queue_name,
+                exclusive=True
+            )
         else:
-            response = self.channel.queue_declare(queue=queue_name, durable=True)
+            response = self.channel.queue_declare(
+                queue=queue_name,
+                durable=True
+            )
         if response:
             self.queue_name = response.method.queue
             print("Queue declared successfully")
-    
+
     def start_consuming(self, on_message_callback):
         def callback(ch, method, properties, body):
             try:
                 print(f"Processing message: {body}")
+
                 def ack():
                     ch.basic_ack(delivery_tag=method.delivery_tag)
+
                 def nack():
                     ch.basic_nack(delivery_tag=method.delivery_tag)
                 on_message_callback(body, ack, nack)
             except Exception as e:
-                raise MessageMiddlewareMessageError(f"Internal error | error: {e}")
-        
+                raise MessageMiddlewareMessageError(
+                    f"Internal error | error: {e}"
+                )
+
         try:
-            self.channel.basic_consume(queue=self.queue_name, on_message_callback=callback)
+            self.channel.basic_consume(
+                queue=self.queue_name,
+                on_message_callback=callback
+            )
             self.channel.start_consuming()
         except (
             pika.exceptions.AMQPConnectionError,
             pika.exceptions.ChannelError,
             pika.exceptions.ConnectionClosed
         ) as e:
-            raise MessageMiddlewareDisconnectedError(f"Connection lost | error: {e}")
+            raise MessageMiddlewareDisconnectedError(
+                f"Connection lost | error: {e}"
+            )
         except Exception as e:
-            raise MessageMiddlewareMessageError(f"Internal error | error: {e}")
-    
+            raise MessageMiddlewareMessageError(
+                f"Internal error | error: {e}"
+            )
+
     def stop_consuming(self):
         try:
             self.channel.stop_consuming()
         except Exception as e:
-            raise MessageMiddlewareDisconnectedError(f"Connection lost | error: {e}")
+            raise MessageMiddlewareDisconnectedError(
+                f"Connection lost | error: {e}"
+            )
 
     def send(self, message):
         try:
             print(f"Sending message: {message}")
-            self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=message)
+            self.channel.basic_publish(
+                exchange='',
+                routing_key=self.queue_name,
+                body=message
+            )
         except (
             pika.exceptions.AMQPConnectionError,
             pika.exceptions.ChannelError,
             pika.exceptions.ConnectionClosed
         ) as e:
-            raise MessageMiddlewareDisconnectedError(f"Connection lost | error: {e}")
+            raise MessageMiddlewareDisconnectedError(
+                f"Connection lost | error: {e}"
+            )
         except Exception as e:
-            raise MessageMiddlewareMessageError(f"Internal error | error: {e}")
+            raise MessageMiddlewareMessageError(
+                f"Internal error | error: {e}"
+            )
 
     def close(self):
         try:
             self.connection.close()
         except Exception as e:
-            raise MessageMiddlewareCloseError(f"Internal error | error: {e}")
+            raise MessageMiddlewareCloseError(
+                f"Internal error | error: {e}"
+            )
+
 
 class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
-    
+
     def __init__(self, host, exchange_name, routing_keys):
         self.exchange_name = exchange_name
         self.routing_keys = routing_keys
@@ -79,10 +117,16 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
         self.connection = self.queue.connection
         self.channel = self.queue.channel
 
-        self.channel.exchange_declare(exchange=self.exchange_name, exchange_type='direct')
+        self.channel.exchange_declare(
+            exchange=self.exchange_name,
+            exchange_type='direct'
+        )
 
         for routing_key in self.routing_keys:
-            self.channel.queue_bind(exchange=self.exchange_name, queue=self.queue_name, routing_key=routing_key)
+            self.channel.queue_bind(
+                exchange=self.exchange_name,
+                queue=self.queue_name,
+                routing_key=routing_key)
 
     def start_consuming(self, on_message_callback):
         self.queue.start_consuming(on_message_callback=on_message_callback)
@@ -99,13 +143,17 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
                     body=message
                 )
             except (
-            pika.exceptions.AMQPConnectionError,
-            pika.exceptions.ChannelError,
-            pika.exceptions.ConnectionClosed
+                pika.exceptions.AMQPConnectionError,
+                pika.exceptions.ChannelError,
+                pika.exceptions.ConnectionClosed
             ) as e:
-                raise MessageMiddlewareDisconnectedError(f"Connection lost | routing_key: {rounting_key} | error: {e}")
+                raise MessageMiddlewareDisconnectedError(
+                    f"Connection lost | routing_key: {rounting_key} | error: {e}"
+                )
             except Exception as e:
-                raise MessageMiddlewareMessageError(f"Internal error | routing_key: {rounting_key} | error: {e}")
+                raise MessageMiddlewareMessageError(
+                    f"Internal error | routing_key: {rounting_key} | error: {e}"
+                )
 
     def close(self):
         self.queue.close()
