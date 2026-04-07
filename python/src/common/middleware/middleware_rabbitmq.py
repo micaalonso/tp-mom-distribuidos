@@ -75,9 +75,10 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
         pika.ConnectionParameters(host='rabbitmq'))
         self.channel = self.connection.channel()
         self.channel.exchange_declare(exchange='direct_logs', exchange_type='direct')
-        response = self.channel.queue_declare(queue=self.exchange_name, durable=True)
+        self.channel.queue_declare(queue=self.exchange_name, durable=True)
 
-        queue_response = self.channel.queue_declare(queue='', durable=True)
+        # El flag exclusive es para que una vez que la conexión cierre, la queue se elimine
+        queue_response = self.channel.queue_declare(queue='', durable=True, exclusive=True)
         queue_name = queue_response.method.queue
 
         for routing_key in self.routing_keys:
@@ -90,7 +91,12 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
         pass
 
     def send(self, message):
-        pass
+        for rounting_key in self.routing_keys:
+            self.channel.basic_publish(
+                exchange=self.exchange_name,
+                routing_key=rounting_key,
+                body=message
+            )
 
     def close(self):
-        pass
+        self.connection.close()
