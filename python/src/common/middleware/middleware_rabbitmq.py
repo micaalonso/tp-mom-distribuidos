@@ -48,9 +48,17 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
             raise MessageMiddlewareDisconnectedError(f"Connection lost | error: {e}")
 
     def send(self, message):
-        # Caso feliz (no considero errores por ahora)
-        print(f"Sending message: {message}")
-        self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=message)
+        try:
+            print(f"Sending message: {message}")
+            self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=message)
+        except (
+            pika.exceptions.AMQPConnectionError,
+            pika.exceptions.ChannelError,
+            pika.exceptions.ConnectionClosed
+        ) as e:
+            raise MessageMiddlewareDisconnectedError(f"Connection lost | error: {e}")
+        except Exception as e:
+            raise MessageMiddlewareMessageError(f"Internal error | error: {e}")
 
     def close(self):
         self.connection.close()
